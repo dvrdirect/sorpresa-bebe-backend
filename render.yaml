@@ -1,0 +1,15 @@
+# Render Blueprint — free web service for the Express server (server.js).
+# Deploy: connect the GitHub repo sorpresa-bebe-backend in Render and
+# apply this Blueprint, or create the Web Service manually with the
+# same build/start commands. MONGODB_URI is set in the Render dashboard
+# (never committed); sync: false means Render will not overwrite it.
+services:
+  - type: web
+    name: sorpresa-bebe-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGODB_URI
+        sync: false
