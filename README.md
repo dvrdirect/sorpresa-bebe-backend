@@ -27,7 +27,8 @@ Base: `https://<project>.vercel.app`
 | GET | `/api/letters` | — | lista de cartas (máx. 500) |
 | POST | `/api/letters` | `{ author?, message }` | carta creada (201) |
 | GET | `/api/subscriptions` | — | lista de suscripciones (máx. 500) |
-| POST | `/api/subscriptions` | `{ channel: "whatsapp"\|"email", contact }` | suscripción creada (201) |
+| POST | `/api/subscriptions` | `{ channel: "whatsapp"\|"email", contact, name? }` | suscripción creada (201) |
+| PATCH | `/api/subscriptions/:id` | `{ name }` | nombre actualizado en una suscripción existente |
 
 CORS: solo permite el origen `https://dvrdirect.github.io`.
 Sin autenticación: son datos públicos de la familia. No se guardan

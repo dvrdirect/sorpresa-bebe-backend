@@ -6,6 +6,7 @@
 //   mongodb+srv://dvrdirect_db_user:<password>@cluster0.msv7q39.mongodb.net/sorpresa_bebe
 // Reuses getCollection() / cleanStr() from api/_lib/mongo.js.
 const express = require("express");
+const { ObjectId } = require("mongodb");
 const { getCollection, cleanStr } = require("./api/_lib/mongo");
 
 const app = express();
@@ -15,7 +16,7 @@ const ALLOWED_ORIGIN = "https://dvrdirect.github.io";
 app.use(express.json({ limit: "100kb" }));
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGIN);
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(204).end();
   next();
@@ -65,7 +66,11 @@ app.post("/api/letters", async (req, res) => {
 });
 
 // GET /api/subscriptions -> list subscriptions (max 500)
-// POST /api/subscriptions { channel: "whatsapp"|"email", contact } -> insert one
+// POST /api/subscriptions { channel: "whatsapp"|"email", contact, name? } -> insert one
+//   name is the visitor's name (from the first screen), saved together
+//   with the contact so Daniel can later message them by name.
+// PATCH /api/subscriptions/:id { name } -> set the name on an existing
+//   subscription (used to backfill the ones saved before name was stored).
 app.get("/api/subscriptions", async (req, res) => {
   try {
     const col = await getCollection("subscriptions");
@@ -78,10 +83,24 @@ app.post("/api/subscriptions", async (req, res) => {
     const channel = req.body && req.body.channel === "email" ? "email"
       : req.body && req.body.channel === "whatsapp" ? "whatsapp" : "";
     const contact = cleanStr(req.body && req.body.contact, 120);
+    const name = cleanStr(req.body && req.body.name, 80);
     if (!channel || !contact) return res.status(400).json({ error: "channel (whatsapp|email) and contact are required" });
-    const doc = { channel, contact, createdAt: new Date().toISOString() };
+    const doc = { channel, contact, name: name || "", createdAt: new Date().toISOString() };
     const r = await (await getCollection("subscriptions")).insertOne(doc);
     res.status(201).json({ _id: r.insertedId, ...doc });
+  } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
+});
+app.patch("/api/subscriptions/:id", async (req, res) => {
+  try {
+    const id = req.params && req.params.id;
+    if (!id || !ObjectId.isValid(id)) return res.status(400).json({ error: "valid id is required" });
+    const name = cleanStr(req.body && req.body.name, 80);
+    if (!name) return res.status(400).json({ error: "name is required" });
+    const col = await getCollection("subscriptions");
+    const r = await col.updateOne({ _id: new ObjectId(id) }, { $set: { name } });
+    if (!r.matchedCount) return res.status(404).json({ error: "subscription not found" });
+    const doc = await col.findOne({ _id: new ObjectId(id) });
+    res.json(doc);
   } catch (e) { console.error(e); res.status(500).json({ error: "Server error" }); }
 });
 
